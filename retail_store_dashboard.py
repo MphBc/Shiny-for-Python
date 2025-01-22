@@ -29,35 +29,190 @@ df['Category'] = df['Category'].replace(category_replacements)
 
 data = df.copy()
 
+data1 = data[data['Quantity'] > 0]
+
+#-------- Global variant --------#
+
+def calculate_dynamic_shared_max(filtered_df):
+    # Calculate total spent by month
+    filtered_df['Month Name'] = filtered_df['Transaction Date'].dt.month_name()
+    month_total_spent = filtered_df.groupby('Month Name')['Total Spent'].sum()
+
+    # Calculate total spent by day
+    filtered_df['Day Name'] = filtered_df['Transaction Date'].dt.day_name()
+    day_total_spent = filtered_df.groupby('Day Name')['Total Spent'].sum()
+
+    # Calculate the shared maximum across both datasets
+    shared_max = max(month_total_spent.max(), day_total_spent.max())
+    return shared_max
+
 # Define a consistent color palette
 color_palette = ['#4E79A7', '#F28E2C', '#E15759', '#76B7B2', '#59A14F', '#EDC949']
 
 # Define the Shiny UI
 app_ui = ui.page_fluid(
-    ui.layout_column_wrap(
-        ui.card(
-            ui.layout_columns(
-            ui.card(
-            ui.h2("Retail Store Sales"),
-            ui.input_radio_buttons(
-                "Category_filter",
-                "Select Category",
-                {"All": "All", **{category: category for category in df['Category'].unique()}},
+    ui.navset_pill(
+        ui.nav_panel(
+            "1",
+            ui.page_fluid(
+                ui.layout_column_wrap(
+                    ui.value_box(
+                        "Total Quantity",
+                        ui.output_ui("quantity"),
+                    ),
+                    ui.value_box(
+                        "Total Spend",
+                        ui.output_ui("price"),
+                    ),
+                    ui.value_box(
+                        "Percent Change",
+                        ui.output_ui("change_percent"),
+                    ),
+                    fill=False,
+                ),
+                ui.layout_columns(
+                    ui.card(
+                        ui.card_header("Price history"),
+                        ui.output_plot("stacked_bar_chart"),
+                    ),
+                    ui.card(
+                        ui.card_header("Latest data"),
+                        ui.tags.style(
+                            """
+                            table {
+                                width: 100%;
+                                table-layout: fixed;
+                            }
+                            th, td {
+                                text-align: center;
+                                padding: 8px;
+                            }
+                            th {
+                                font-weight: bold;
+                            }
+                            """
+                        ),
+                        ui.output_table("top_customers"),
+                    ),
+                    col_widths=[9, 3],
+                ),
             ),
-            ),
-            ui.card(ui.output_plot("donut_chart")),
-            col_widths=(4, 8),
-         ),
         ),
-        ui.card(ui.output_plot("stacked_bar_chart")),
-        ui.card(ui.output_plot("bar_chart_month")),
-        ui.card(ui.output_plot("bar_chart_day")),
-        width=1 / 2,
+        ui.nav_panel(
+            "2",
+            ui.layout_column_wrap(
+                ui.card(
+                    ui.layout_columns(
+                        ui.card(
+                            ui.h2("Retail Store Sales"),
+                            ui.input_radio_buttons(
+                                "Category_filter",
+                                "Select Category",
+                                {"All": "All", **{category: category for category in df['Category'].unique()}},
+                            ),
+                        ),
+                        ui.card(ui.output_plot("donut_chart")),
+                        col_widths=(4, 8),
+                    ),
+                ),
+                ui.card(ui.output_plot("bar_chart_avg_price")),
+                ui.card(ui.output_plot("bar_chart_month")),
+                ui.card(ui.output_plot("bar_chart_day")),
+                width=1 / 2,
+            ),
+        ),
     ),
 )
 
+
+    #---------------------- PART1 ----------------------#
 # Define the server logic
 def server(input, output, session):
+    @output
+    @render.plot
+    def stacked_bar_chart():
+        selected_category = input.Category_filter()
+
+        if selected_category == "All" or selected_category is None:
+            filtered_df = df
+        else:
+            filtered_df = df[df['Category'] == selected_category]
+
+        data = filtered_df.groupby(['Category', 'Payment Method'])['Total Spent'].sum().unstack(fill_value=0)
+        data = data.sort_values(by=data.columns.tolist(), ascending=False)
+
+        fig, ax = plt.subplots(figsize=(10, 5))
+        data.plot(
+            kind='bar',
+            stacked=True,
+            ax=ax,
+            color=color_palette[:len(data.columns)],
+        )
+        ax.set_title("Total Spent by Category and Payment Method" if selected_category == "All" else f"Total Spent: {selected_category}", fontsize=16)
+        ax.set_ylabel("Total Spent", fontsize=14)
+        ax.legend(title="Payment Method", fontsize=10)
+        ax.tick_params(axis='x', labelrotation=45)
+
+        # Wrap long x-axis labels
+        ax.set_xticklabels(["\n".join(label.get_text().split()) for label in ax.get_xticklabels()])
+
+        ax.grid(axis='y', linestyle='--', alpha=0.7)
+        
+        # Remove the right and top spines
+        ax.spines['right'].set_visible(False)
+        ax.spines['top'].set_visible(False)
+        fig.tight_layout()
+
+        return fig
+
+    @render.ui
+    def price():
+        Total_spend = data['Total Spent'].sum
+        return Total_spend
+
+    @render.ui
+    def price():
+        # Ensure 'Total Spent' is numeric and handle missing values
+        if data['Total Spent'].isnull().any():
+            data['Total Spent'] = data['Total Spent'].fillna(0)  # Replace NaN with 0
+
+        # # Convert 'Total Spent' to numeric, replacing non-numeric values with 0
+        # data['Total Spent'] = pd.to_numeric(data['Total Spent'], errors='coerce').fillna(0)
+
+        # Calculate total spend as an integer
+        total_spend = int(data['Total Spent'].sum())
+        return f"{total_spend:,.2f} $"  # Format with commas and currency symbol
+    
+    @render.ui
+    def quantity():
+        # Check for missing or non-numeric values
+        if data['Quantity'].isnull().any():
+            data['Quantity'] = data['Quantity'].fillna(0)  # Replace NaN with 0
+
+        data['Quantity'] = data['Quantity'].astype(int)
+        total_quantity = data['Quantity'].sum()
+        return f"{total_quantity:,}"  # Format as currency
+    
+    @output
+    @render.table
+    def top_customers():
+        # Calculate the total spend per customer
+        top_customers = data.groupby('Customer ID')['Total Spent'].sum().reset_index()
+
+        # Sort by total spend in descending order
+        top_customers = top_customers.sort_values(by='Total Spent', ascending=False).head(10)
+
+        # # Convert 'Total Spent' to numeric, replacing non-numeric values with 0
+        # top_customers['Total Spent'] = pd.to_numeric(top_customers['Total Spent'], errors='coerce').fillna(0)
+
+        # Optionally, format the 'Total Spent' column to include commas for thousands
+        top_customers['Total Spent'] = top_customers['Total Spent'].apply(lambda x: f"{x:,.2f}")
+
+        # Return the data as a DataFrame
+        return top_customers
+
+
+#---------------------- PART2 ----------------------#
     @output
     @render.plot
     def donut_chart():
@@ -90,89 +245,70 @@ def server(input, output, session):
         ax.set_title(title, fontsize=12)
 
         return fig
-
-
+    
     @output
     @render.plot
-    def stacked_bar_chart():
-        selected_category = input.Category_filter()
+    def bar_chart_avg_price():
+        # Calculate the adjusted price per unit by dividing Price Per Unit by Quantity
+        data1['Adjusted Price Per Unit'] = data1['Price Per Unit'] / data1['Quantity']
 
-        if selected_category == "All" or selected_category is None:
-            filtered_df = df
-        else:
-            filtered_df = df[df['Category'] == selected_category]
+        # Group the data by 'Category' and calculate the average Price Per Unit for each category
+        category_avg_price = data1.groupby('Category')['Adjusted Price Per Unit'].mean().reset_index()
 
-        data = filtered_df.groupby(['Category', 'Payment Method'])['Total Spent'].sum().unstack(fill_value=0)
-        data = data.sort_values(by=data.columns.tolist(), ascending=False)
+        # Rename the columns for clarity
+        category_avg_price.columns = ['Category', 'Average Price Per Unit']
 
+        # Sort the DataFrame by 'Average Price Per Unit' in descending order
+        category_avg_price_sorted = category_avg_price.sort_values(by='Average Price Per Unit', ascending=False)
+
+        # Find the category with the highest value
+        max_value_category = category_avg_price_sorted.iloc[0]['Category']
+
+        # Create the plot
         fig, ax = plt.subplots(figsize=(10, 5))
-        data.plot(
-            kind='bar',
-            stacked=True,
-            ax=ax,
-            color=color_palette[:len(data.columns)],
+
+        # Highlight the highest value bar
+        bars = ax.bar(
+            category_avg_price_sorted['Category'], 
+            category_avg_price_sorted['Average Price Per Unit'], 
+            color=[
+                'orange' if category == max_value_category else 'teal'
+                for category in category_avg_price_sorted['Category']
+            ],
+            width=0.5
         )
-        ax.set_title("Total Spent by Category and Payment Method" if selected_category == "All" else f"Total Spent: {selected_category}", fontsize=16)
-        ax.set_ylabel("Total Spent", fontsize=14)
-        ax.legend(title="Payment Method", fontsize=10)
-        ax.tick_params(axis='x', labelrotation=45)
 
-        # Wrap long x-axis labels
-        ax.set_xticklabels(["\n".join(label.get_text().split()) for label in ax.get_xticklabels()])
-
-        ax.grid(axis='y', linestyle='--', alpha=0.7)
-        fig.tight_layout()
-
-        return fig
-
-    @output
-    @render.plot
-    def bar_chart_day():
-        selected_category = input.Category_filter()
-
-        if selected_category == "All" or selected_category is None:
-            filtered_df = df
-        else:
-            filtered_df = df[df['Category'] == selected_category]
-
-        filtered_df['Transaction Date'] = pd.to_datetime(filtered_df['Transaction Date'])
-        filtered_df['Day Name'] = filtered_df['Transaction Date'].dt.day_name()
-
-        day_total_spent = filtered_df.groupby('Day Name')['Total Spent'].sum().reset_index()
-
-        day_order = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
-        day_total_spent['Day Name'] = pd.Categorical(day_total_spent['Day Name'], categories=day_order, ordered=True)
-        day_total_spent = day_total_spent.sort_values('Day Name')
-
-        if day_total_spent.empty:
-            fig, ax = plt.subplots(figsize=(10, 5))
-            ax.text(0.5, 0.5, "No data available", ha="center", va="center", fontsize=10)
-            ax.set_title("Total Spent by Day of the Week", fontsize=16)
-            return fig
-
-        fig, ax = plt.subplots(figsize=(10, 5))
-        bars = ax.bar(day_total_spent['Day Name'], day_total_spent['Total Spent'], color=color_palette[0])
-
+        # Add labels to each bar
         for bar in bars:
             height = bar.get_height()
-            ax.text(bar.get_x() + bar.get_width() / 2, height, f"{height:.0f}", ha='center', va='bottom', fontsize=10)
-
-        ax.set_title('Total Spent by Day of the Week', fontsize=16)
-        ax.set_ylabel('Total Spent', fontsize=14)
-        ax.tick_params(axis='x', labelrotation=45)
+            ax.text(
+                bar.get_x() + bar.get_width() / 2,  # Position at the center of the bar
+                height,  # Height of the bar
+                f"{height:.2f}",  # Display the value formatted to 2 decimal places
+                ha='center', va='bottom', fontsize=10  # Align text
+            )
 
         # Wrap long x-axis labels
-        ax.set_xticklabels(["\n".join(label.get_text().split()) for label in ax.get_xticklabels()])
+        wrapped_labels = ["\n".join(label.split()) for label in category_avg_price_sorted['Category']]
+        ax.set_xticks(range(len(wrapped_labels)))
+        ax.set_xticklabels(wrapped_labels, rotation=45, ha='right', fontsize=10)
 
-        fig.tight_layout()
+        # Remove the right and top spines
+        ax.spines['right'].set_visible(False)
+        ax.spines['top'].set_visible(False)
+
+        # Chart details
+        ax.set_title('Average Price Per Unit by Category', fontsize=16,pad=30)
+        ax.set_ylabel('Average Price Per Unit', fontsize=14)
 
         return fig
-    
+
     @output
     @render.plot
     def bar_chart_month():
         selected_category = input.Category_filter()
 
+        # Filter the data based on the selected category
         if selected_category == "All" or selected_category is None:
             filtered_df = data
         else:
@@ -183,7 +319,8 @@ def server(input, output, session):
 
         month_total_spent = filtered_df.groupby('Month Name')['Total Spent'].sum().reset_index()
 
-        month_order = ['January', 'February', 'March', 'April', 'May', 'June', 
+        # Ensure months are in the correct order
+        month_order = ['January', 'February', 'March', 'April', 'May', 'June',
                     'July', 'August', 'September', 'October', 'November', 'December']
         month_total_spent['Month Name'] = pd.Categorical(month_total_spent['Month Name'], categories=month_order, ordered=True)
         month_total_spent = month_total_spent.sort_values('Month Name')
@@ -194,21 +331,113 @@ def server(input, output, session):
             ax.set_title("Total Spent by Month", fontsize=16)
             return fig
 
-        fig, ax = plt.subplots(figsize=(10, 5))
-        bars = ax.bar(month_total_spent['Month Name'], month_total_spent['Total Spent'], color='lightcoral')
+        # Calculate the shared maximum for the y-axis
+        shared_max = calculate_dynamic_shared_max(filtered_df)
 
+        # Find the month with the maximum total spent
+        max_value_month = month_total_spent.loc[month_total_spent['Total Spent'].idxmax(), 'Month Name']
+
+        # Create the plot
+        fig, ax = plt.subplots(figsize=(10, 5))
+        bars = ax.bar(
+            month_total_spent['Month Name'],
+            month_total_spent['Total Spent'],
+            color=[
+                'orange' if month == max_value_month else '#48A6A7'
+                for month in month_total_spent['Month Name']
+            ],
+        )
+
+        # Add labels to each bar
         for bar in bars:
             height = bar.get_height()
             ax.text(bar.get_x() + bar.get_width() / 2, height, f"{height:.0f}", ha='center', va='bottom', fontsize=10)
 
-        title = 'Total Spent by Month' if selected_category == "All" else f'Total Spent by Month: {selected_category}'
+        # Set the y-axis limit using the shared maximum
+        ax.set_ylim(0, shared_max * 1.1)  # Add 10% padding
+
+        # Set the title dynamically based on the selected category
+        # title = 'Total Spent by Month' if selected_category == "All" else f'Total Spent by Month: {selected_category}'
+        title = 'Total Spent by Month'
         ax.set_title(title, fontsize=16)
         ax.set_ylabel('Total Spent', fontsize=14)
         ax.tick_params(axis='x', labelrotation=45)
+
+        # Remove the right and top spines
+        ax.spines['right'].set_visible(False)
+        ax.spines['top'].set_visible(False)
 
         fig.tight_layout()
 
         return fig
 
+    @output
+    @render.plot
+    def bar_chart_day():
+        selected_category = input.Category_filter()
+
+        # Filter the data based on the selected category
+        if selected_category == "All" or selected_category is None:
+            filtered_df = data
+        else:
+            filtered_df = data[data['Category'] == selected_category]
+
+        filtered_df['Transaction Date'] = pd.to_datetime(filtered_df['Transaction Date'])
+        filtered_df['Day Name'] = filtered_df['Transaction Date'].dt.day_name()
+
+        day_total_spent = filtered_df.groupby('Day Name')['Total Spent'].sum().reset_index()
+
+        # Ensure days are in the correct order
+        day_order = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+        day_total_spent['Day Name'] = pd.Categorical(day_total_spent['Day Name'], categories=day_order, ordered=True)
+        day_total_spent = day_total_spent.sort_values('Day Name')
+
+        if day_total_spent.empty:
+            fig, ax = plt.subplots(figsize=(10, 5))
+            ax.text(0.5, 0.5, "No data available", ha="center", va="center", fontsize=10)
+            ax.set_title("Total Spent by Day of the Week", fontsize=16)
+            return fig
+
+        # Calculate the shared maximum for the y-axis
+        shared_max = calculate_dynamic_shared_max(filtered_df)
+
+        # Find the day with the maximum total spent
+        max_value_day = day_total_spent.loc[day_total_spent['Total Spent'].idxmax(), 'Day Name']
+
+        # Create the plot
+        fig, ax = plt.subplots(figsize=(10, 5))
+        bars = ax.bar(
+            day_total_spent['Day Name'],
+            day_total_spent['Total Spent'],
+            color=[
+                'orange' if day == max_value_day else '#9ACBD0'
+                for day in day_total_spent['Day Name']
+            ],
+            width=0.5
+        )
+
+        # Add labels to each bar
+        for bar in bars:
+            height = bar.get_height()
+            ax.text(bar.get_x() + bar.get_width() / 2, height, f"{height:.0f}", ha='center', va='bottom', fontsize=10)
+
+        # Set the y-axis limit using the shared maximum
+        ax.set_ylim(0, shared_max * 1.1)  # Add 10% padding
+
+        # Chart details
+        ax.set_title('Total Spent by Day of the Week', fontsize=16, pad=30)
+        ax.set_ylabel('Total Spent', fontsize=14)
+        ax.tick_params(axis='x', labelrotation=45)
+
+        # Remove the right and top spines
+        ax.spines['right'].set_visible(False)
+        ax.spines['top'].set_visible(False)
+
+        fig.tight_layout()
+
+        return fig
+
+
+    
 # Create the Shiny app
 app = App(app_ui, server)
