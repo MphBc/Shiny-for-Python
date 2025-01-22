@@ -51,32 +51,80 @@ color_palette = ['#4E79A7', '#F28E2C', '#E15759', '#76B7B2', '#59A14F', '#EDC949
 
 # Define the Shiny UI
 app_ui = ui.page_fluid(
+    ui.tags.style(
+        """
+        .value-box {
+            text-align: center;        /* Center-align text */
+        }
+        .value-box h3 {
+            margin: 0;
+            font-size: 20px;          /* Title font size */
+            font-weight: bold;
+            color: #495057;           /* Darker gray for text */
+        }
+        .value-box p {
+            margin: 0;
+            font-size: 24px;          /* Value font size */
+            font-weight: bold;
+            color: #007bff;           /* Bootstrap primary blue */
+        }
+        .custom-card-header {
+            text-align: center;        /* Center-align text */
+            margin: 0;
+            font-size: 24px;          /* Title font size */
+            font-weight: bold;
+            color: #007bff;           /* Darker gray for text */
+        }
+        """
+    ),
     ui.navset_pill(
         ui.nav_panel(
             "1",
             ui.page_fluid(
                 ui.layout_column_wrap(
-                    ui.value_box(
-                        "Total Quantity",
-                        ui.output_ui("quantity"),
+                    ui.tags.div(
+                        ui.value_box(
+                            "Total Quantity",
+                            ui.output_ui("quantity")
+                        ),
+                        class_="value-box"
                     ),
-                    ui.value_box(
-                        "Total Spend",
-                        ui.output_ui("price"),
+                    ui.tags.div(
+                        ui.value_box(
+                            "Total Spend",
+                            ui.output_ui("price")
+                        ),
+                        class_="value-box"
                     ),
-                    ui.value_box(
-                        "Percent Change",
-                        ui.output_ui("change_percent"),
+                    ui.tags.div(
+                        ui.value_box(
+                            "Percent Change (YoY)",
+                            ui.output_ui("yoy")
+                        ),
+                        class_="value-box"
                     ),
-                    fill=False,
+                    fill=False
                 ),
                 ui.layout_columns(
-                    ui.card(
-                        ui.card_header("Price history"),
-                        ui.output_plot("stacked_bar_chart"),
+                    ui.tags.div(
+                        ui.card(
+                            ui.card_header(
+                                ui.tags.h3(
+                                    "Total Spent by Category and Payment Method",
+                                    class_="custom-card-header"
+                                )
+                            ),
+                            ui.output_plot("stacked_bar_chart")
+                        ),
+                        class_="stacked-box"
                     ),
                     ui.card(
-                        ui.card_header("Latest data"),
+                        ui.card_header(
+                            ui.tags.h3(
+                                "Latest data",
+                                class_="custom-card-header"
+                            )
+                        ),
                         ui.tags.style(
                             """
                             table {
@@ -92,9 +140,9 @@ app_ui = ui.page_fluid(
                             }
                             """
                         ),
-                        ui.output_table("top_customers"),
+                        ui.output_table("top_customers")
                     ),
-                    col_widths=[9, 3],
+                    col_widths=[9, 3]
                 ),
             ),
         ),
@@ -112,19 +160,17 @@ app_ui = ui.page_fluid(
                             ),
                         ),
                         ui.card(ui.output_plot("donut_chart")),
-                        col_widths=(4, 8),
+                        col_widths=(4, 8)
                     ),
                 ),
                 ui.card(ui.output_plot("bar_chart_avg_price")),
                 ui.card(ui.output_plot("bar_chart_month")),
                 ui.card(ui.output_plot("bar_chart_day")),
-                width=1 / 2,
+                width=1 / 2
             ),
         ),
     ),
 )
-
-
     #---------------------- PART1 ----------------------#
 # Define the server logic
 def server(input, output, session):
@@ -148,7 +194,7 @@ def server(input, output, session):
             ax=ax,
             color=color_palette[:len(data.columns)],
         )
-        ax.set_title("Total Spent by Category and Payment Method" if selected_category == "All" else f"Total Spent: {selected_category}", fontsize=16)
+
         ax.set_ylabel("Total Spent", fontsize=14)
         ax.legend(title="Payment Method", fontsize=10)
         ax.tick_params(axis='x', labelrotation=45)
@@ -193,6 +239,61 @@ def server(input, output, session):
         total_quantity = data['Quantity'].sum()
         return f"{total_quantity:,}"  # Format as currency
     
+    @render.ui
+    def yoy():
+        # # Convert 'Transaction Date' to datetime if not already done
+        # data['Transaction Date'] = pd.to_datetime(data['Transaction Date'])
+
+        # # Extract the year from the transaction date
+        # data['Year'] = data['Transaction Date'].dt.year
+
+        # # Group by year and calculate the total spent for each year
+        # yearly_total_spent = data.groupby('Year')['Total Spent'].sum().reset_index()
+
+        # # Calculate Year-over-Year (YoY) percentage change
+        # yearly_total_spent['YoY Change (%)'] = yearly_total_spent['Total Spent'].pct_change() * 100
+
+        # # Extract the data for the last year
+        # last_year_data = yearly_total_spent.iloc[-1]
+
+        # # Format the YoY Change value to 2 decimal places
+        # last_year_yoy_change = round(last_year_data["YoY Change (%)"], 2)
+
+        # Convert 'Transaction Date' to datetime if not already done
+        if not pd.api.types.is_datetime64_any_dtype(data['Transaction Date']):
+            data['Transaction Date'] = pd.to_datetime(data['Transaction Date'])
+
+        # Extract the year from the transaction date
+        data['Year'] = data['Transaction Date'].dt.year
+
+        # Handle missing or zero values in 'Total Spent'
+        data['Total Spent'] = data['Total Spent'].fillna(0)
+
+        # Group by year and calculate the total spent for each year
+        yearly_total_spent = data.groupby('Year')['Total Spent'].sum().reset_index()
+
+        # Check if there are enough years of data for YoY analysis
+        if len(yearly_total_spent) < 2:
+            return "Insufficient data for Year-over-Year analysis."
+
+        # Calculate Year-over-Year (YoY) percentage change
+        yearly_total_spent['YoY Change (%)'] = yearly_total_spent['Total Spent'].pct_change() * 100
+
+        # Extract the data for the last year
+        last_year_data = yearly_total_spent.iloc[-1]
+
+        # Handle cases where YoY Change is NaN
+        last_year_yoy_change = last_year_data["YoY Change (%)"]
+        if pd.isna(last_year_yoy_change):
+            return "No YoY Change Available"
+
+        # Format the YoY Change value to 2 decimal places
+        last_year_yoy_change = round(last_year_yoy_change, 2)
+
+        return f"{last_year_yoy_change}%"
+
+
+
     @output
     @render.table
     def top_customers():
