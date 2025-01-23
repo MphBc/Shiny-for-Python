@@ -49,147 +49,6 @@ def calculate_dynamic_shared_max(filtered_df):
 # Define a consistent color palette
 color_palette = ['#4E79A7', '#F28E2C', '#E15759', '#76B7B2', '#59A14F', '#EDC949']
 
-# # Define the Shiny UI
-# app_ui = ui.page_fluid(
-#     ui.tags.style(
-# """
-#         .nav-box{
-#             display: flex;
-#             flex-direction: column;
-#             width: 100%;
-#             background-color: #4A4947;
-#         }
-#         .nav-title {
-#             text-align: center;
-#             color: white;
-#             font-size: 45px;
-#             font-weight: bold;
-#             padding: 10px;
-#         }
-#         .value-box {
-#             text-align: center;
-#         }
-#         .value-box h3 {
-#             margin: 0;
-#             font-size: 20px;
-#             font-weight: bold;
-#             color: #495057;
-#         }
-#         .value-box p {
-#             margin: 0;
-#             font-size: 24px;
-#             font-weight: bold;
-#             color: #007bff;
-#         }
-#         .custom-card-header {
-#             text-align: center;
-#             margin: 0;
-#             font-size: 24px;
-#             font-weight: bold;
-#             color: #007bff;
-#         }
-#         """
-#     ),
-#     ui.tags.div(
-#     ui.tags.h1("Retail Store Sales Dashboard", class_="nav-title"),
-#     class_="nav-box"
-#     ),
-#         ui.page_navbar(
-#             ui.nav_panel("Home",
-#                 ui.page_fluid(
-#                     ui.layout_column_wrap(
-#                         ui.tags.div(
-#                             ui.value_box(
-#                                 "Total Quantity",
-#                                 ui.output_ui("quantity")
-#                             ),
-#                             class_="value-box"
-#                         ),
-#                         ui.tags.div(
-#                             ui.value_box(
-#                                 "Total Spend",
-#                                 ui.output_ui("price")
-#                             ),
-#                             class_="value-box"
-#                         ),
-#                         ui.tags.div(
-#                             ui.value_box(
-#                                 "Percent Change (YoY)",
-#                                 ui.output_ui("yoy")
-#                             ),
-#                             class_="value-box"
-#                         ),
-#                         fill=False
-#                     ),
-#                     ui.layout_columns(
-#                         ui.tags.div(
-#                             ui.card(
-#                                 ui.card_header(
-#                                     ui.tags.h3(
-#                                         "Total Spent by Category and Payment Method",
-#                                         class_="custom-card-header"
-#                                     )
-#                                 ),
-#                                 ui.output_plot("stacked_bar_chart")
-#                             ),
-#                             class_="stacked-box"
-#                         ),
-#                         ui.card(
-#                             ui.card_header(
-#                                 ui.tags.h3(
-#                                     "Latest data",
-#                                     class_="custom-card-header"
-#                                 )
-#                             ),
-#                             ui.tags.style(
-#                                 """
-#                                 table {
-#                                     width: 100%;
-#                                     table-layout: fixed;
-#                                 }
-#                                 th, td {
-#                                     text-align: center;
-#                                     padding: 8px;
-#                                 }
-#                                 th {
-#                                     font-weight: bold;
-#                                 }
-#                                 """
-#                             ),
-#                             ui.output_table("top_customers")
-#                         ),
-#                         col_widths=[9, 3]
-#                     ),
-#                 ),
-#             ),
-#             ui.nav_panel(
-#                 "Day",
-#                 ui.layout_column_wrap(
-#                     ui.card(
-#                         ui.layout_columns(
-#                             ui.card(
-#                                 ui.h2("Retail Store Sales"),
-#                                 ui.input_radio_buttons(
-#                                     "Category_filter",
-#                                     "Select Category",
-#                                     {"All": "All", **{category: category for category in df['Category'].unique()}},
-#                                 ),
-#                             ),
-#                             ui.card(ui.output_plot("donut_chart")),
-#                             col_widths=(4, 8)
-#                         ),
-#                     ),
-#                     ui.card(ui.output_plot("bar_chart_avg_price")),
-#                     ui.card(ui.output_plot("bar_chart_month")),
-#                     ui.card(ui.output_plot("bar_chart_day")),
-#                     width=1 / 2
-#                 ),
-#             ),
-#         ),
-#         class_="nav-box",
-# )
-
-# Define the Shiny UI
 app_ui = ui.page_fluid(
     ui.tags.style(
         """
@@ -209,7 +68,7 @@ app_ui = ui.page_fluid(
         .nav-panel-text {
             font-size: 18px;
             font-weight: bold;
-            color: #495057;  /* White text for better contrast */
+            color: #495057;
             padding: 5px 10px;
         }
         .value-box {
@@ -234,6 +93,30 @@ app_ui = ui.page_fluid(
             font-weight: bold;
             color: #007bff;
         }
+        table {
+            width: 100%;
+            table-layout: fixed;
+        }
+        th, td {
+            text-align: center;
+            padding: 8px;
+        }
+        th {
+            font-weight: bold;
+        }
+        .equal-height-card {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+        }
+        .equal-height-card .card-body {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+        .equal-height-card .card-body .plot-container {
+            flex: 1;
+        }
         """
     ),
     ui.tags.div(
@@ -242,7 +125,7 @@ app_ui = ui.page_fluid(
     ),
     ui.page_navbar(
         ui.nav_panel(
-            ui.tags.span("Home", class_="nav-panel-text"),
+            ui.tags.span("Overview", class_="nav-panel-text"),
             ui.page_fluid(
                 ui.layout_column_wrap(
                     ui.tags.div(
@@ -266,51 +149,35 @@ app_ui = ui.page_fluid(
                         ),
                         class_="value-box"
                     ),
-                    fill=False
                 ),
                 ui.layout_columns(
-                    ui.tags.div(
-                        ui.card(
-                            ui.card_header(
-                                ui.tags.h3(
-                                    "Total Spent by Category and Payment Method",
-                                    class_="custom-card-header"
-                                )
-                            ),
-                            ui.output_plot("stacked_bar_chart")
+                    ui.card(
+                        ui.card_header(
+                            ui.tags.h3(
+                                "Total Spent by Category and Payment Method",
+                                class_="custom-card-header"
+                            )
                         ),
-                        class_="stacked-box"
+                        ui.output_plot("stacked_bar_chart"),
+                        class_="equal-height-card"
                     ),
                     ui.card(
                         ui.card_header(
                             ui.tags.h3(
-                                "Latest data",
+                                "Latest Data",
                                 class_="custom-card-header"
                             )
                         ),
-                        ui.tags.style(
-                            """
-                            table {
-                                width: 100%;
-                                table-layout: fixed;
-                            }
-                            th, td {
-                                text-align: center;
-                                padding: 8px;
-                            }
-                            th {
-                                font-weight: bold;
-                            }
-                            """
-                        ),
-                        ui.output_table("top_customers")
+                        ui.output_table("top_customers"),
+                        class_="equal-height-card"
                     ),
-                    col_widths=[9, 3]
+                    col_widths=(9, 3),
+                    height="100%"
                 ),
             ),
         ),
         ui.nav_panel(
-            ui.tags.span("Day", class_="nav-panel-text"),
+            ui.tags.span("Sales", class_="nav-panel-text"),
             ui.layout_column_wrap(
                 ui.card(
                     ui.layout_columns(
@@ -329,15 +196,14 @@ app_ui = ui.page_fluid(
                 ui.card(ui.output_plot("bar_chart_avg_price")),
                 ui.card(ui.output_plot("bar_chart_month")),
                 ui.card(ui.output_plot("bar_chart_day")),
-                width=1 / 2
+                width=1/2
             ),
         ),
     ),
     class_="nav-box",
 )
 
-
-    #---------------------- PART1 ----------------------#
+#---------------------- PART1 ----------------------#
 # Define the server logic
 def server(input, output, session):
     @output
@@ -362,7 +228,17 @@ def server(input, output, session):
         )
 
         ax.set_ylabel("Total Spent", fontsize=14)
-        ax.legend(title="Payment Method", fontsize=10)
+        ax.set_xlabel("")  # Remove x-axis label
+        # ax.legend(title="Payment Method", fontsize=10)
+        
+        # Move the legend outside the plot area
+        ax.legend(
+            title="Payment Method",
+            fontsize=10,
+            bbox_to_anchor=(1.05, 1),  # Move legend outside to the right
+            loc='upper left',          # Anchor point for the legend
+            borderaxespad=0.           # Padding between legend and axes
+        )
         ax.tick_params(axis='x', labelrotation=45)
 
         # Wrap long x-axis labels
@@ -462,6 +338,7 @@ def server(input, output, session):
 
 
 #---------------------- PART2 ----------------------#
+
     @output
     @render.plot
     def donut_chart():
@@ -476,7 +353,7 @@ def server(input, output, session):
         if counts.empty:
             fig, ax = plt.subplots(figsize=(6, 6))
             ax.text(0.5, 0.5, "No data available", ha="center", va="center", fontsize=12)
-            ax.set_title("Category Distribution", fontsize=12)
+            ax.set_title("Category Distribution", fontsize=14)
             return fig
 
         fig, ax = plt.subplots(figsize=(6, 6))
@@ -489,12 +366,13 @@ def server(input, output, session):
             colors=color_palette[:len(counts)],
         )
         for text in texts + autotexts:
-            text.set_fontsize(10)
+            text.set_fontsize(12)  # Consistent font size for labels and percentages
         title = "Category Distribution" if selected_category == "All" else f"Category Distribution: {selected_category}"
-        ax.set_title(title, fontsize=12)
+        ax.set_title(title, fontsize=14)  # Consistent title font size
 
         return fig
-    
+
+
     @output
     @render.plot
     def bar_chart_avg_price():
@@ -534,21 +412,22 @@ def server(input, output, session):
                 bar.get_x() + bar.get_width() / 2,  # Position at the center of the bar
                 height,  # Height of the bar
                 f"{height:.2f}",  # Display the value formatted to 2 decimal places
-                ha='center', va='bottom', fontsize=10  # Align text
+                ha='center', va='bottom', fontsize=10  # Consistent font size for bar labels
             )
 
         # Wrap long x-axis labels
         wrapped_labels = ["\n".join(label.split()) for label in category_avg_price_sorted['Category']]
         ax.set_xticks(range(len(wrapped_labels)))
-        ax.set_xticklabels(wrapped_labels, rotation=45, ha='right', fontsize=10)
+        ax.set_xticklabels(wrapped_labels, rotation=45, ha='right', fontsize=12)  # Consistent font size for x-axis labels
 
         # Remove the right and top spines
         ax.spines['right'].set_visible(False)
         ax.spines['top'].set_visible(False)
 
         # Chart details
-        ax.set_title('Average Price Per Unit by Category', fontsize=16,pad=30)
-        ax.set_ylabel('Average Price Per Unit', fontsize=14)
+        ax.set_title('Average Price Per Unit by Category', fontsize=14, pad=20)  # Consistent title font size
+        ax.set_ylabel('Average Price Per Unit', fontsize=12)  # Consistent y-axis label font size
+        ax.tick_params(axis='y', labelsize=12)  # Consistent y-axis tick label font size
 
         return fig
 
@@ -577,7 +456,7 @@ def server(input, output, session):
         if month_total_spent.empty:
             fig, ax = plt.subplots(figsize=(10, 5))
             ax.text(0.5, 0.5, "No data available", ha="center", va="center", fontsize=12)
-            ax.set_title("Total Spent by Month", fontsize=16)
+            ax.set_title("Total Spent by Month", fontsize=14)
             return fig
 
         # Calculate the shared maximum for the y-axis
@@ -600,17 +479,21 @@ def server(input, output, session):
         # Add labels to each bar
         for bar in bars:
             height = bar.get_height()
-            ax.text(bar.get_x() + bar.get_width() / 2, height, f"{height:.0f}", ha='center', va='bottom', fontsize=10)
+            ax.text(
+                bar.get_x() + bar.get_width() / 2,  # Position at the center of the bar
+                height + (shared_max * 0.02),  # Move label slightly above the bar
+                f"{height:,.0f}",  # Display the value formatted with commas
+                ha='center', va='bottom', fontsize=8  # Adjust font size and alignment
+            )
 
         # Set the y-axis limit using the shared maximum
-        ax.set_ylim(0, shared_max * 1.1)  # Add 10% padding
+        ax.set_ylim(0, shared_max * 1.15)  # Add extra padding for labels
 
-        # Set the title dynamically based on the selected category
-        # title = 'Total Spent by Month' if selected_category == "All" else f'Total Spent by Month: {selected_category}'
-        title = 'Total Spent by Month'
-        ax.set_title(title, fontsize=16)
-        ax.set_ylabel('Total Spent', fontsize=14)
-        ax.tick_params(axis='x', labelrotation=45)
+        # Chart details
+        ax.set_title('Total Spent by Month', fontsize=14)  # Consistent title font size
+        ax.set_ylabel('Total Spent', fontsize=12)  # Consistent y-axis label font size
+        ax.tick_params(axis='x', labelrotation=45, labelsize=12)  # Consistent x-axis tick label font size
+        ax.tick_params(axis='y', labelsize=12)  # Consistent y-axis tick label font size
 
         # Remove the right and top spines
         ax.spines['right'].set_visible(False)
@@ -643,8 +526,8 @@ def server(input, output, session):
 
         if day_total_spent.empty:
             fig, ax = plt.subplots(figsize=(10, 5))
-            ax.text(0.5, 0.5, "No data available", ha="center", va="center", fontsize=10)
-            ax.set_title("Total Spent by Day of the Week", fontsize=16)
+            ax.text(0.5, 0.5, "No data available", ha="center", va="center", fontsize=12)
+            ax.set_title("Total Spent by Day of the Week", fontsize=14)
             return fig
 
         # Calculate the shared maximum for the y-axis
@@ -668,15 +551,16 @@ def server(input, output, session):
         # Add labels to each bar
         for bar in bars:
             height = bar.get_height()
-            ax.text(bar.get_x() + bar.get_width() / 2, height, f"{height:.0f}", ha='center', va='bottom', fontsize=10)
+            ax.text(bar.get_x() + bar.get_width() / 2, height, f"{height:,.0f}", ha='center', va='bottom', fontsize=8)  # Consistent font size for bar labels
 
         # Set the y-axis limit using the shared maximum
         ax.set_ylim(0, shared_max * 1.1)  # Add 10% padding
 
         # Chart details
-        ax.set_title('Total Spent by Day of the Week', fontsize=16, pad=30)
-        ax.set_ylabel('Total Spent', fontsize=14)
-        ax.tick_params(axis='x', labelrotation=45)
+        ax.set_title('Total Spent by Day of the Week', fontsize=14, pad=20)  # Consistent title font size
+        ax.set_ylabel('Total Spent', fontsize=12)  # Consistent y-axis label font size
+        ax.tick_params(axis='x', labelrotation=45, labelsize=12)  # Consistent x-axis tick label font size
+        ax.tick_params(axis='y', labelsize=12)  # Consistent y-axis tick label font size
 
         # Remove the right and top spines
         ax.spines['right'].set_visible(False)
@@ -686,7 +570,5 @@ def server(input, output, session):
 
         return fig
 
-
-    
 # Create the Shiny app
 app = App(app_ui, server)
