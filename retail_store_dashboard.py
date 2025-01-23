@@ -235,8 +235,8 @@ def server(input, output, session):
         ax.legend(
             title="Payment Method",
             fontsize=10,
-            bbox_to_anchor=(1.05, 1),  # Move legend outside to the right
-            loc='upper left',          # Anchor point for the legend
+            bbox_to_anchor=(1.05, 0.5),  # Move legend outside to the right
+            loc='center left',          # Anchor point for the legend
             borderaxespad=0.           # Padding between legend and axes
         )
         ax.tick_params(axis='x', labelrotation=45)
