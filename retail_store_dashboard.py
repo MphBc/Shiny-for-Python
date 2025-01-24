@@ -255,11 +255,6 @@ def server(input, output, session):
 
     @render.ui
     def price():
-        Total_spend = data['Total Spent'].sum
-        return Total_spend
-
-    @render.ui
-    def price():
         # Ensure 'Total Spent' is numeric and handle missing values
         if data['Total Spent'].isnull().any():
             data['Total Spent'] = data['Total Spent'].fillna(0)  # Replace NaN with 0
